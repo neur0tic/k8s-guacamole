@@ -1,0 +1,148 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole
+  namespace: guacamole
+  labels:
+    app: guacamole
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guacamole 
+  strategy: 
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: guacamole
+    spec:
+      containers:
+        - image: guacamole/guacamole
+          name: guacamole
+          env:
+            - name: WEBAPP_CONTEXT
+              value: 'ROOT'
+            - name: GUACD_HOSTNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: guacd_host
+            - name: GUACD_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: guacd_port
+            - name: MYSQL_HOSTNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: db_host
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: db_name
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-secret
+                  key: db_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-secret
+                  key: db_password
+          ports:
+            - containerPort: 8080
+              name: guacamole-http
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacd
+  namespace: guacamole
+  labels:
+    app: guacd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guacd
+  template:
+    metadata:
+      labels: 
+       app: guacd
+    spec:
+      containers:
+        - name: guacd
+          image: guacamole/guacd 
+          ports:
+           - containerPort: 4822
+             name: guacd
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: init-mysql-guacamole
+ namespace: guacamole
+ labels:
+   app: init-mysql-guacamole
+spec:
+ replicas: 1
+ selector:
+   matchLabels:
+     app: init-mysql-guacamole
+ template:
+  metadata:
+   labels:
+     app: init-mysql-guacamole
+  spec:
+    initContainers:
+        - name: init-mysql-schema
+          image: mysql:8.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Loading MySQL script..."
+              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" < /tmp/sql/000-create-db-users.sql
+              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/sql/001-create-schema.sql
+              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/sql/002-create-admin-user.sql
+              sleep 5
+          env:
+            - name: DB_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-secret
+                  key: db_admin_user
+            - name: DB_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-secret
+                  key: db_admin_password
+            - name: MYSQL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: db_host
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: db_name
+          volumeMounts:
+            - name: guacamole-sql
+              mountPath: /tmp
+    containers:
+        - name: dummy-container
+          image: busybox
+          command: ["sleep", "60"]
+    volumes:
+            - name: guacamole-sql
+              persistentVolumeClaim:
+                claimName: guacamole-pv-claim
