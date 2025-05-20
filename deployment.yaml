@@ -18,6 +18,40 @@ spec:
       labels:
         app: guacamole
     spec:
+      initContainers:
+        - name: init-mysql-schema
+          image: mysql:8.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Loading MySQL script..."
+              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" < /tmp/000-create-db-users.sql
+              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/001-create-schema.sql
+              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/002-create-admin-user.sql
+          env:
+            - name: DB_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-secret
+                  key: db_admin_user
+            - name: DB_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-secret
+                  key: db_admin_password
+            - name: MYSQL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: db_host
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: guacamole-cm
+                  key: db_name
+          volumeMounts:
+            - name: guacamole-sql
+              mountPath: /tmp
       containers:
         - image: guacamole/guacamole
           name: guacamole
@@ -57,6 +91,10 @@ spec:
           ports:
             - containerPort: 8080
               name: guacamole-http
+      volumes:
+            - name: guacamole-sql
+              persistentVolumeClaim:
+                claimName: guacamole-pv-claim
 
 ---
 
@@ -83,66 +121,3 @@ spec:
           ports:
            - containerPort: 4822
              name: guacd
-
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
- name: init-mysql-guacamole
- namespace: guacamole
- labels:
-   app: init-mysql-guacamole
-spec:
- replicas: 1
- selector:
-   matchLabels:
-     app: init-mysql-guacamole
- template:
-  metadata:
-   labels:
-     app: init-mysql-guacamole
-  spec:
-    initContainers:
-        - name: init-mysql-schema
-          image: mysql:8.0
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              echo "Loading MySQL script..."
-              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" < /tmp/sql/000-create-db-users.sql
-              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/sql/001-create-schema.sql
-              mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/sql/002-create-admin-user.sql
-              sleep 5
-          env:
-            - name: DB_ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: guacamole-secret
-                  key: db_admin_user
-            - name: DB_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: guacamole-secret
-                  key: db_admin_password
-            - name: MYSQL_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: guacamole-cm
-                  key: db_host
-            - name: MYSQL_DATABASE
-              valueFrom:
-                configMapKeyRef:
-                  name: guacamole-cm
-                  key: db_name
-          volumeMounts:
-            - name: guacamole-sql
-              mountPath: /tmp
-    containers:
-        - name: dummy-container
-          image: busybox
-          command: ["sleep", "60"]
-    volumes:
-            - name: guacamole-sql
-              persistentVolumeClaim:
-                claimName: guacamole-pv-claim
