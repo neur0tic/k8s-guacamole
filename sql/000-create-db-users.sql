@@ -1,0 +1,5 @@
+CREATE DATABASE IF NOT EXISTS guacamole;
+
+CREATE USER IF NOT EXISTS 'guacamole'@'%' IDENTIFIED BY 'ChennaiDBA@';
+GRANT ALL PRIVILEGES ON guacamole.* TO 'guacamole'@'%';
+FLUSH PRIVILEGES;
