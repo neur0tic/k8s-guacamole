@@ -28,6 +28,7 @@ spec:
               mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" < /tmp/000-create-db-users.sql
               mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/001-create-schema.sql
               mysql -h"$MYSQL_HOST" -u"$DB_ADMIN_USER" -p"$DB_ADMIN_PASSWORD" "$MYSQL_DATABASE" < /tmp/002-create-admin-user.sql
+              sleep 600
           env:
             - name: DB_ADMIN_USER
               valueFrom:
