@@ -1,0 +1,81 @@
+# Guacamole Kubernetes Deployment
+
+This documentation provides a comprehensive guide to deploying Apache Guacamole, a clientless remote desktop gateway, using Kubernetes manifests. Follow the steps below to set up and configure the deployment.
+
+## Prerequisites
+
+Before proceeding, ensure the following prerequisites are met:
+
+- A functional Kubernetes cluster (e.g., Minikube, GKE, EKS, AKS, etc.)
+- `kubectl` CLI installed and configured to interact with your cluster
+- A persistent storage provisioner available in your cluster (if required by the manifests)
+- Access to a database server (e.g., MySQL or PostgreSQL) for Guacamole's backend
+
+## Components Overview
+
+The deployment includes the following Kubernetes resources:
+
+1. **Namespace**: Isolates resources within a specific namespace.
+2. **ConfigMap**: Stores non-sensitive configuration data for the Guacamole application.
+3. **Secrets**: Stores sensitive information such as database credentials securely.
+4. **PersistentVolumeClaim (PVC)**: Manages persistent storage for the application.
+5. **Deployment**: Defines the Guacamole application pods and ensures high availability.
+6. **Service**: Exposes the Guacamole application within the cluster or externally.
+
+## Deployment Steps
+
+1. **Clone the Repository**
+    Clone the repository containing the Kubernetes manifests:
+    ```bash
+    git clone https://github.com/your-repo/k8s-guacamole.git
+    cd k8s-guacamole
+    ```
+
+2. **Customize Configuration**
+    - Update `namespace.yaml` to specify the desired namespace for the deployment.
+    - Modify `configmap.yaml` to include any custom configuration for Guacamole.
+    - Edit `secrets.yaml` to provide your database credentials (username, password, and connection details).
+    - Adjust `pvc.yaml` to match your storage class and size requirements.
+
+3. **Apply the Kubernetes Manifests**
+    Apply the manifests in the following order to ensure proper resource creation:
+    ```bash
+    kubectl apply -f namespace.yaml
+    kubectl apply -f configmap.yaml
+    kubectl apply -f secrets.yaml
+    kubectl apply -f pvc.yaml
+    kubectl apply -f deployment.yaml
+    kubectl apply -f service.yaml
+    ```
+
+4. **Verify the Deployment**
+    - Check the status of the pods to ensure they are running:
+      ```bash
+      kubectl get pods -n <namespace>
+      ```
+    - Verify the service to obtain the external IP or NodePort for accessing the application:
+      ```bash
+      kubectl get svc -n <namespace>
+      ```
+
+5. **Access the Application**
+    Open your browser and navigate to the external IP or NodePort provided by the service to access the Guacamole web interface.
+
+## Configuration Details
+
+- **Namespace**: The deployment resources are isolated within the namespace defined in `namespace.yaml`. Update this file if you wish to use a different namespace.
+- **Database Configuration**: Ensure the database credentials in `secrets.yaml` are accurate. The application requires a database backend to function correctly.
+- **Persistent Storage**: The `pvc.yaml` file defines the storage requirements for the application. Modify the storage class and size as per your cluster's configuration.
+
+## Troubleshooting
+
+- If the pods are not running, check the logs for errors:
+  ```bash
+  kubectl logs <pod-name> -n <namespace>
+  ```
+- Ensure the database server is accessible from the cluster and the credentials are correct.
+- Verify that the persistent storage provisioner is functioning correctly in your cluster.
+
+## Cleanup
+
+To remove all resources created by this deployment, run the following commands:
